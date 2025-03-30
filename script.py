@@ -13,8 +13,8 @@ MODEL = "gpt-3.5-turbo"  # Updated to a commonly available model
 P4_FILE = "generated.p4"
 OUTPUT_FILE = "build_output.txt"
 DB_FILE = "p4_logs.db"
-MAX_FEEDBACK_ITERATIONS = 10
-ITERATIONS = 15  # Reintroduced loop
+MAX_FEEDBACK_ITERATIONS = 4
+ITERATIONS = 1 
 
 def setup_database():
     """Reset and initialize a fresh SQLite database."""

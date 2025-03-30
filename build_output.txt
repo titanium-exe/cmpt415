@@ -1,4 +1,4 @@
-generated.p4(68):syntax error, unexpected IDENTIFIER, expecting ;
-            InternetChecksum() ck
-                               ^^
+generated.p4(36):syntax error, unexpected IDENTIFIER "packet_inout"
+parser MyParser(packet_inout
+                ^^^^^^^^^^^^
 [--Werror=overlimit] error: 1 errors encountered, aborting compilation
