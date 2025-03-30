@@ -2,7 +2,7 @@
 
 ## Experiment 1 
 - No Success
-- User Prompt : Parse Ethernet and IPv4 headers and forward packets unchanged
+- User Prompt : Parse Ethernet and IPv4 headers and forward packets unchanged (llm is given an easy task. complicated ones are still mystery...)
 - Prompt generator :  
 
                         detailed_prompt = (
@@ -17,7 +17,7 @@
 - No of Iterations: 5 
 
 - Observation: In the 5th iteration 1 of the 4 (maybe more) errors were solved.
-- A little Success descpite having explicit prompt in the begining itself, llm gave me improved code afte 5th iteration after taking same feedback from p4c. 
+- A little Success despite having explicit prompt in the begining, llm gave me improved code after 5th iteration after taking feedback from p4c. The feedback was  same error 5 times. so stubborn!
 
 - Improvement : 
                 V1Switch(
@@ -30,3 +30,6 @@
                 ) main;
 
 - 1st and 5th output comparision :  experiment1/1-and-5-summary.txt
+
+
+## Experiment 2 
