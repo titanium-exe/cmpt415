@@ -64,15 +64,11 @@ def generate_detailed_prompt(high_level_prompt):
         more_details = input("Please provide additional details: ")
         detailed_prompt = (
             f"{high_level_prompt}. {more_details}. "
-            "You are an expert in P4_16 programming targeting the BMv2 v1model architecture. "
-            "Generate complete, valid P4_16 code that compiles with `p4c-bm2-ss`. "
-            "Use the `v1model.p4` architecture and include:\n"
-            "- All required headers (Ethernet, IPv4, TCP)\n"
-            "- `struct headers` and `struct metadata`\n"
-            "- Full parser, ingress, egress, deparser, VerifyChecksum, and ComputeChecksum blocks\n"
-            "- Final `V1Switch(...) main;` instantiation must include **all 6 components**:\n\n"
-            "`V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), ComputeChecksum(), MyDeparser()) main;`\n\n"
-            "Do not use #includes. Do not skip the checksum stages."
+            "Write valid, complete P4_16 code for the BMv2 `v1model` architecture that compiles with `p4c-bm2-ss`. "
+            "Include all required blocks: headers, metadata, parser, ingress, egress, deparser, VerifyChecksum, ComputeChecksum. "
+            "Define an empty `struct metadata {}`. "
+            "End with `V1Switch(...) main;` using all six components exactly:\n"
+            "`V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
         )
 
     print(f"\nDetailed prompt generated: {detailed_prompt}")
@@ -212,6 +208,13 @@ def summarize_results():
 
     conn.close()
 
+def write_code_to_file(code, filename):
+    """Write the generated P4 code to a file."""
+    with open(filename, "w") as f:
+        f.write(code)
+    print(f"Code written to {filename}")
+
+
 def main():
     """Main driver loop for iterative code generation and compilation."""
     os.makedirs("build", exist_ok=True)  # Ensure output directory exists
@@ -221,14 +224,15 @@ def main():
 
     for iteration in range(1, ITERATIONS + 1):
         print(f"\n=== Iteration {iteration}/{ITERATIONS} ===")
+        iteration_filename = f"gen{iteration}.p4"
 
         code = generate_p4_code(user_prompt)
         if not code:
             log_to_database(iteration, user_prompt, "Failed to generate code", "N/A", False)
             continue
 
-        write_code_to_file(code, P4_FILE)
-        compiler_output, success = compile_p4_code(P4_FILE)
+        write_code_to_file(code, iteration_filename)
+        compiler_output, success = compile_p4_code(iteration_filename)
 
         # Log original result
         log_to_database(iteration, user_prompt, code, compiler_output, success)
@@ -239,11 +243,12 @@ def main():
             if choice == "y":
                 fixed_code = fix_p4_code(code, compiler_output)
                 if fixed_code:
-                    write_code_to_file(fixed_code, P4_FILE)
-                    new_output, new_success = compile_p4_code(P4_FILE)
+                    write_code_to_file(fixed_code, iteration_filename)
+                    new_output, new_success = compile_p4_code(iteration_filename)
                     log_to_database(iteration, user_prompt, fixed_code, new_output, new_success)
                 else:
                     print("No improved code returned.")
+
 
     summarize_results()  # Print final statistics
 

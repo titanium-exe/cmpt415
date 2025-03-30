@@ -7,22 +7,37 @@ import re
 DB_FILE = "p4_logs.db"
 
 def extract_error_messages(compiler_output):
-    """Extract concise error messages from compiler output."""
+    """Extract key error lines from p4c output, excluding internal debug noise."""
     error_lines = []
-    for line in compiler_output.split('\n'):
-        # Look for lines with 'error' or 'invalid'
-        if 'error' in line.lower() or 'invalid' in line.lower():
-            # Extract the core error message after 'error:'
-            match = re.search(r'error:\s*(.+)$', line, re.IGNORECASE)
-            if match:
-                error_lines.append(match.group(1).strip())
-            else:
-                # Fallback for syntax errors or other formats
-                error_lines.append(line.strip())
-    # Filter out unhelpful lines like '---- Actual error:'
-    return [err for err in error_lines if err and 'Actual error' not in err]
 
-def get_most_common_errors():
+    for line in compiler_output.split('\n'):
+        stripped = line.strip()
+
+        # Match useful error indicators
+        if 'error:' in stripped.lower():
+            error_lines.append(stripped)
+        elif 'syntax error' in stripped.lower():
+            error_lines.append(stripped)
+        elif 'invalid' in stripped.lower():
+            error_lines.append(stripped)
+        elif re.search(r'\bdoes not match declaration\b', stripped, re.IGNORECASE):
+            error_lines.append(stripped)
+        elif re.search(r'\bundeclared\b|\bmissing\b|\bnot found\b', stripped, re.IGNORECASE):
+            error_lines.append(stripped)
+
+    # Clean up: remove duplicates and noisy meta-errors
+    filtered = []
+    seen = set()
+    for err in error_lines:
+        if any(skip in err.lower() for skip in ['actual error', 'originating from', 'note:']):
+            continue
+        if err not in seen:
+            filtered.append(err)
+            seen.add(err)
+
+    return filtered
+
+def get_most_common_errors(limit=5):
     """Analyze database for most common compilation errors."""
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -39,7 +54,7 @@ def get_most_common_errors():
         return []
 
     error_counts = Counter(all_errors)
-    return error_counts.most_common(5)
+    return error_counts.most_common(limit)
 
 def display_error_dashboard():
     """Display a dashboard of most common errors."""
@@ -83,7 +98,7 @@ def main():
         display_iteration_table()
     except sqlite3.Error as e:
         print(f"Database error: {e}")
-        print("Please ensure p4_generator.py has been run first to populate the database.")
+        print("Please ensure the P4 generation script has been run first to populate the database.")
 
 if __name__ == "__main__":
     main()
