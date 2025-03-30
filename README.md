@@ -33,3 +33,23 @@
 
 
 ## Experiment 2 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Resources (still incomplete)
+
+1) Prompt Style (in experiment 3): https://github.com/hzy46/NADA.git
