@@ -13,9 +13,10 @@ MODEL = "gpt-4"
 P4_FILE = "generated.p4"
 OUTPUT_FILE = "build_output.txt"
 DB_FILE = "p4_logs.db"
-ITERATIONS = 2
+ITERATIONS = 5
 
 def setup_database():
+    """Initialize SQLite database to store compilation results."""
     if os.path.exists(DB_FILE):
         os.remove(DB_FILE)
         print("old data removed\n")
@@ -25,7 +26,6 @@ def setup_database():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     iteration INTEGER,
                     timestamp TEXT,
-                    prompt_type TEXT,
                     user_prompt TEXT,
                     generated_code TEXT,
                     compiler_output TEXT,
@@ -34,26 +34,27 @@ def setup_database():
     conn.commit()
     conn.close()
 
-def log_to_database(iteration, prompt_type, prompt, code, compiler_output, success):
+def log_to_database(iteration, prompt, code, compiler_output, success):
+    """Save details of each iteration to the database."""
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     timestamp = datetime.now().isoformat()
-    c.execute('''INSERT INTO p4_logs (iteration, timestamp, prompt_type, user_prompt, generated_code, compiler_output, success)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                 (iteration, timestamp, prompt_type, prompt, code, compiler_output, int(success)))
+    c.execute('''INSERT INTO p4_logs (iteration, timestamp, user_prompt, generated_code, compiler_output, success)
+                 VALUES (?, ?, ?, ?, ?, ?)''', 
+                 (iteration, timestamp, prompt, code, compiler_output, int(success)))
     conn.commit()
     conn.close()
-
-
 
 def generate_detailed_prompt(high_level_prompt):
     """Enhance a high-level user input into a detailed, compiler-targeted P4_16 prompt."""
     detailed_prompt = (
-        f"[Basic Prompt] {high_level_prompt}. Generate valid P4_16 code that compiles successfully using p4c-bm2-ss. "
-        "Target the v1model architecture with packet parsing, match-action tables, and egress processing. "
-        "Ensure completeness with necessary headers, parsers, and control blocks."
+        f"{high_level_prompt}. Generate valid P4_16 code that compiles successfully using p4c-bm2-ss. "
+        "The code should target a simple switch architecture (e.g., v1model) and include basic packet parsing, "
+        "match-action tables, and egress processing. Ensure the code is complete with necessary headers, parsers, "
+        "and control blocks."
     )
 
+    # Check for vague prompts
     vague_keywords = ["simple", "basic", "something", "anything"]
     is_vague = any(keyword in high_level_prompt.lower() for keyword in vague_keywords) or len(high_level_prompt.split()) < 5
 
@@ -62,16 +63,16 @@ def generate_detailed_prompt(high_level_prompt):
         print(f"Your prompt: '{high_level_prompt}' is too high-level. Please provide more specifics.")
         more_details = input("Please provide additional details: ")
         detailed_prompt = (
-            f"[Explicit Prompt] {high_level_prompt}. {more_details}. "
-            "Generate complete P4_16 code for v1model compiling with p4c-bm2-ss. "
-            "Explicitly include all blocks: headers, metadata (empty), parser, VerifyChecksum, Ingress, Egress, ComputeChecksum, Deparser. "
-            "End explicitly with:\n"
-            "V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;"
+            f"{high_level_prompt}. {more_details}. "
+            "Write valid, complete P4_16 code for the BMv2 `v1model` architecture that compiles with `p4c-bm2-ss`. "
+            "Include all required blocks: headers, metadata, parser, ingress, egress, deparser, VerifyChecksum, ComputeChecksum. "
+            "Define an empty `struct metadata {}`. "
+            "End with `V1Switch(...) main;` using all six components exactly:\n"
+            "`V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
         )
 
     print(f"\nDetailed prompt generated: {detailed_prompt}")
     return detailed_prompt
-
 
 def get_user_prompt():
     """Prompt the user for the high-level intent and generate a detailed version."""
@@ -213,13 +214,13 @@ def write_code_to_file(code, filename):
         f.write(code)
     print(f"Code written to {filename}")
 
+
 def main():
     """Main driver loop for iterative code generation and compilation."""
     os.makedirs("build", exist_ok=True)  # Ensure output directory exists
     setup_database()
 
     user_prompt = get_user_prompt()  # Collect detailed user prompt once
-    prompt_type = "Explicit" if "[Explicit Prompt]" in user_prompt else "Basic"
 
     for iteration in range(1, ITERATIONS + 1):
         print(f"\n=== Iteration {iteration}/{ITERATIONS} ===")
@@ -227,19 +228,30 @@ def main():
 
         code = generate_p4_code(user_prompt)
         if not code:
-            log_to_database(iteration, prompt_type, user_prompt, "Failed to generate code", "N/A", False)
+            log_to_database(iteration, user_prompt, "Failed to generate code", "N/A", False)
             continue
 
         write_code_to_file(code, iteration_filename)
         compiler_output, success = compile_p4_code(iteration_filename)
 
         # Log original result
-        log_to_database(iteration, prompt_type, user_prompt, code, compiler_output, success)
+        log_to_database(iteration, user_prompt, code, compiler_output, success)
+
+        # Retry once if compilation fails
+        if not success:
+            choice = input("Send compiler errors to ChatGPT for improvement? (y/n): ").lower()
+            if choice == "y":
+                fixed_code = fix_p4_code(code, compiler_output)
+                if fixed_code:
+                    write_code_to_file(fixed_code, iteration_filename)
+                    new_output, new_success = compile_p4_code(iteration_filename)
+                    log_to_database(iteration, user_prompt, fixed_code, new_output, new_success)
+                else:
+                    print("No improved code returned.")
+
 
     summarize_results()  # Print final statistics
 
 if __name__ == "__main__":
     main()
-
-
 
