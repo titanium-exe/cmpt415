@@ -9,12 +9,12 @@ from datetime import datetime
 
 # Configuration constants
 API_KEY = "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"
-MODEL = "gpt-4"
+MODEL = "gpt-3.5-turbo"  # Updated to a commonly available model
 P4_FILE = "generated.p4"
 OUTPUT_FILE = "build_output.txt"
 DB_FILE = "p4_logs.db"
-MAX_FEEDBACK_ITERATIONS = 10 # Max retries on fix attempts
-
+MAX_FEEDBACK_ITERATIONS = 10
+ITERATIONS = 15  # Reintroduced loop
 
 def setup_database():
     """Reset and initialize a fresh SQLite database."""
@@ -36,18 +36,21 @@ def setup_database():
     conn.close()
     print("Database reset and initialized.")
 
-
 def log_to_database(iteration, prompt, code, compiler_output, success):
-    """Log iteration results into the SQLite database."""
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    timestamp = datetime.now().isoformat()
-    c.execute('''INSERT INTO p4_logs (iteration, timestamp, user_prompt, generated_code, compiler_output, success)
-                 VALUES (?, ?, ?, ?, ?, ?)''',
-              (iteration, timestamp, prompt, code, compiler_output, int(success)))
-    conn.commit()
-    conn.close()
-
+    """Log iteration results into the SQLite database with error handling."""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        timestamp = datetime.now().isoformat()
+        c.execute('''INSERT INTO p4_logs (iteration, timestamp, user_prompt, generated_code, compiler_output, success)
+                     VALUES (?, ?, ?, ?, ?, ?)''',
+                  (iteration, timestamp, prompt, code or "N/A", compiler_output or "N/A", int(success)))
+        conn.commit()
+        print(f"Logged iteration {iteration} to database: success={success}")
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    finally:
+        conn.close()
 
 def generate_detailed_prompt(high_level_prompt):
     """Expand the user's high-level intent into a detailed, compiler-compatible P4_16 prompt."""
@@ -70,16 +73,12 @@ def generate_detailed_prompt(high_level_prompt):
         high_level_prompt += f" {more_details}"
 
     detailed_prompt = f"{high_level_prompt}. {architecture_details}"
-
     print(f"\nDetailed prompt generated: {detailed_prompt}")
     return detailed_prompt
-
-
 
 def get_user_prompt():
     high_level_prompt = input("Enter your high-level intent for the P4 program: ")
     return generate_detailed_prompt(high_level_prompt)
-
 
 def generate_p4_code(prompt):
     print(f"Generating P4_16 code for intent: {prompt}...")
@@ -96,8 +95,12 @@ def generate_p4_code(prompt):
         "temperature": 0.3
     }
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
-    response_data = response.json()
+    try:
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+        response_data = response.json()
+    except Exception as e:
+        print(f"API request failed: {e}")
+        return None
 
     if "error" in response_data:
         print("Error from API:")
@@ -112,15 +115,12 @@ def generate_p4_code(prompt):
 
     code_match = re.search(r"```p4\n([\s\S]*?)\n```", raw_content)
     code = code_match.group(1) if code_match else raw_content
-
     return code.strip() if code else None
-
 
 def write_code_to_file(code, filename):
     with open(filename, "w") as f:
         f.write(code)
     print(f"Code written to {filename}")
-
 
 def compile_p4_code(filename):
     print("Compiling with p4c-bm2-ss...")
@@ -134,7 +134,6 @@ def compile_p4_code(filename):
         f.write(compiler_output)
 
     success = result.returncode == 0
-
     if success:
         print("Compilation succeeded.")
     else:
@@ -142,7 +141,6 @@ def compile_p4_code(filename):
         print(result.stderr)
 
     return compiler_output, success
-
 
 def fix_p4_code(code, errors):
     print("Sending compiler errors to ChatGPT for improvement...")
@@ -163,8 +161,12 @@ def fix_p4_code(code, errors):
         "temperature": 0.2
     }
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
-    response_data = response.json()
+    try:
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+        response_data = response.json()
+    except Exception as e:
+        print(f"API request failed: {e}")
+        return None
 
     if "error" in response_data:
         print("Error from API:")
@@ -179,47 +181,44 @@ def fix_p4_code(code, errors):
 
     code_match = re.search(r"```p4\n([\s\S]*?)\n```", raw_content)
     fixed_code = code_match.group(1) if code_match else raw_content
-
     return fixed_code.strip() if fixed_code else None
-
 
 def main():
     os.makedirs("build", exist_ok=True)
     setup_database()
 
     user_prompt = get_user_prompt()
-    iteration = 1
 
-    code = generate_p4_code(user_prompt)
-    if not code:
-        print("Initial code generation failed.")
-        return
+    for iteration in range(1, ITERATIONS + 1):
+        print(f"\n=== Iteration {iteration}/{ITERATIONS} ===")
+        
+        code = generate_p4_code(user_prompt)
+        if not code:
+            log_to_database(iteration, user_prompt, "Failed to generate code", "N/A", False)
+            continue
 
-    write_code_to_file(code, P4_FILE)
-    compiler_output, success = compile_p4_code(P4_FILE)
-    log_to_database(iteration, user_prompt, code, compiler_output, success)
-
-    feedback_rounds = 0
-    while not success and feedback_rounds < MAX_FEEDBACK_ITERATIONS:
-        feedback_rounds += 1
-        print(f"Attempting fix #{feedback_rounds}...")
-        fixed_code = fix_p4_code(code, compiler_output)
-        if not fixed_code:
-            print("No improved code returned.")
-            break
-
-        write_code_to_file(fixed_code, P4_FILE)
+        write_code_to_file(code, P4_FILE)
         compiler_output, success = compile_p4_code(P4_FILE)
-        log_to_database(iteration, user_prompt, fixed_code, compiler_output, success)
-        code = fixed_code
+        log_to_database(iteration, user_prompt, code, compiler_output, success)
 
-    if not success:
-        print("Code did not compile successfully after 10 feedback attempts.")
-    else:
-        print("Code compiled successfully after fixing!")
-    
+        feedback_rounds = 0
+        while not success and feedback_rounds < MAX_FEEDBACK_ITERATIONS:
+            feedback_rounds += 1
+            print(f"Attempting fix #{feedback_rounds}...")
+            fixed_code = fix_p4_code(code, compiler_output)
+            if not fixed_code:
+                log_to_database(iteration, user_prompt, code, "No improved code returned", False)
+                break
 
+            write_code_to_file(fixed_code, P4_FILE)
+            compiler_output, success = compile_p4_code(P4_FILE)
+            log_to_database(iteration, user_prompt, fixed_code, compiler_output, success)
+            code = fixed_code
 
+        if not success:
+            print(f"Iteration {iteration} failed to compile after {MAX_FEEDBACK_ITERATIONS} attempts.")
+        else:
+            print(f"Iteration {iteration} compiled successfully!")
 
 if __name__ == "__main__":
     main()

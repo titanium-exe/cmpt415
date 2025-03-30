@@ -10,21 +10,25 @@ import pandas as pd
 
 # Configuration constants
 API_KEY = "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"
-MODEL = "gpt-4"
+MODEL = "gpt-3.5-turbo"  # Updated to a widely available model
 DB_FILE = "p4_logs.db"
 
-
 def summarize_from_db():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM p4_logs", conn)
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        df = pd.read_sql_query("SELECT * FROM p4_logs", conn)
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Error connecting to database: {e}")
+        return
 
     if df.empty:
         print("Database is empty. No logs to summarize.")
         return
 
     df['result'] = df['success'].map({1: 'Success', 0: 'Failure'})
-    df['error_type'] = df['compiler_output'].str.extract(r'error: ([^:]+):', expand=False).fillna('Unknown')
+    # Updated regex to capture full error message until newline or end
+    df['error_type'] = df['compiler_output'].str.extract(r'error: (.*?)(?:\n|$)', expand=False).fillna('Unknown')
 
     total = len(df)
     successes = df['success'].sum()
@@ -48,7 +52,7 @@ def summarize_from_db():
 
     print(report)
 
-    # Send report to ChatGPT to ask if performance improved
+    # Send report to ChatGPT for feedback
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
@@ -62,16 +66,14 @@ def summarize_from_db():
         "temperature": 0.2
     }
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
-    response_data = response.json()
-
     try:
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+        response_data = response.json()
         content = response_data['choices'][0]['message']['content']
         print("\nChatGPT Feedback:")
         print(content)
     except Exception as e:
-        print("Error parsing ChatGPT response:", e)
-
+        print(f"Error getting ChatGPT feedback: {e}")
 
 if __name__ == "__main__":
     summarize_from_db()
