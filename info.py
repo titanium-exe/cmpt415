@@ -1,38 +1,90 @@
+#!/usr/bin/env python3
+
+import requests
+import subprocess
+import os
+import re
 import sqlite3
+from datetime import datetime
 import pandas as pd
 
-# Load data
-conn = sqlite3.connect('p4_logs.db')
-df = pd.read_sql_query("SELECT * FROM p4_logs", conn)
-conn.close()
+# Configuration constants
+API_KEY = "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"
+MODEL = "gpt-3.5-turbo"  # Updated to a widely available model
+DB_FILE = "p4_logs.db"
 
-# Basic summary of all iterations
-print("=" * 80)
-print("P4 COMPILATION RUN SUMMARY")
-print("=" * 80)
-print(df[['iteration', 'timestamp', 'success']].to_string(index=False))
-print()
+def summarize_from_db():
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        df = pd.read_sql_query("SELECT * FROM p4_logs", conn)
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Error connecting to database: {e}")
+        return
 
-# Extract error types using regex
-df['error_type'] = df['compiler_output'].str.extract(r'error: ([^:]+):', expand=False)
+    if df.empty:
+        print("Database is empty. No logs to summarize.")
+        return
 
-# Get top 3 most common error types
-top_errors = df['error_type'].value_counts().head(3)
+    df['result'] = df['success'].map({1: 'Success', 0: 'Failure'})
+    # Debug: Print raw compiler_output to check content
+    print("\nSample compiler_output from database:")
+    print(df['compiler_output'].head(5).to_string())
 
-print("=" * 80)
-print("TOP COMPILER ERRORS WITH EXAMPLES")
-print("=" * 80)
+    # Updated regex to capture more error formats
+    df['error_type'] = df['compiler_output'].str.extract(r'(?:error: )?(.*?)(?:\n|$)', expand=False).fillna('Unknown')
 
-for error_type, count in top_errors.items():
-    print("\n" + "-" * 80)
-    print(f"ERROR TYPE: {error_type.upper()} ({count} occurrences)")
-    print("-" * 80)
+    # Debug: Check extracted error types
+    print("\nExtracted error_type values:")
+    print(df['error_type'].value_counts().to_string())
 
-    # Get one sample of this error type
-    sample = df[df['error_type'] == error_type]['compiler_output'].dropna().iloc[0]
-    print(sample.strip())
+    total = len(df)
+    successes = df['success'].sum()
+    failures = total - successes
+    latest_code = df.iloc[-1]['generated_code']
 
-print("\n" + "=" * 80)
-print("End of Report")
-print("=" * 80)
+    error_summary = df[df['success'] == 0]['error_type'].value_counts().head(5)
+    print("\nError summary (top 5):")
+    print(error_summary.to_string())
 
+    max_error = error_summary.idxmax() if not error_summary.empty else "None"
+    max_count = error_summary.max() if not error_summary.empty else 0
+
+    report = (
+        f"Performance Report (Generated from Database):\n"
+        f"--------------------------------------------------\n"
+        f"Total Attempts: {total}\n"
+        f"Successes: {successes}\n"
+        f"Failures: {failures}\n"
+        f"Success Rate: {successes/total*100:.2f}%\n"
+        f"\nMost Frequent Compiler Error: '{max_error}' ({max_count} times)\n"
+        f"\nLast Generated Code:\n\n{latest_code[:1000]}...\n\n"
+    )
+
+    print(report)
+
+    # Send report to ChatGPT for feedback
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": MODEL,
+        "messages": [
+            {"role": "system", "content": "You are a P4 code reviewer. Evaluate the compilation results."},
+            {"role": "user", "content": report + "\nWas the code improving? What suggestions do you have based on these logs?"}
+        ],
+        "temperature": 0.2
+    }
+
+    try:
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+        response_data = response.json()
+        content = response_data['choices'][0]['message']['content']
+        print("\nChatGPT Feedback:")
+        print(content)
+    except Exception as e:
+        print(f"Error getting ChatGPT feedback: {e}")
+
+if __name__ == "__main__":
+    summarize_from_db()
