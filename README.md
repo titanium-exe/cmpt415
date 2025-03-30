@@ -4,7 +4,6 @@
 - No Success
 - User Prompt : Parse Ethernet and IPv4 headers and forward packets unchanged (llm is given an easy task. complicated ones are still a mystery...)
 - Prompt generator :  
-
                         detailed_prompt = (
                                     f"{high_level_prompt}. {more_details}. "
                                     "Write valid, complete P4_16 code for the BMv2 `v1model` architecture that compiles with `p4c-bm2-ss`. "
@@ -37,19 +36,20 @@
 - User Prompt : Count all IPv4 packets received and store the count in a register 
 - Prompt generator :  
                     detailed_prompt = (
-                        f"{high_level_prompt}. "
-                        "Generate valid, complete P4_16 code targeting the BMv2 v1model architecture that compiles with p4c-bm2-ss. "
-                        "Include precisely:\n"
-                        "- Header definitions (e.g., ethernet_t).\n"
-                        "- Empty metadata struct.\n"
-                        "- Parser block named MyParser.\n"
-                        "- Empty control blocks named exactly: MyVerifyChecksum, MyIngress, MyEgress, MyComputeChecksum.\n"
-                        "- Deparser named MyDeparser.\n"
-                        "End exactly with:\n"
-                        "V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;"
+                                f"{high_level_prompt}. "
+                                "Generate valid, complete P4_16 code targeting the BMv2 v1model architecture that compiles with p4c-bm2-ss. "
+                                "Include precisely:\n"
+                                "- Header definitions (e.g., ethernet_t).\n"
+                                "- Empty metadata struct.\n"
+                                "- Parser block named MyParser.\n"
+                                "- Empty control blocks named exactly: MyVerifyChecksum, MyIngress, MyEgress, MyComputeChecksum.\n"
+                                "- Deparser named MyDeparser.\n"
+                                "End exactly with:\n"
+                                "V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;"
                     )
 
-- I noticed that it always makes standard 3 errors over and over again for any prompt even after explicitly setting the requirement in the prompt: 
+- I noticed that llm always makes standard 3 errors over and over again for any prompt in all the scripts.
+- Even after explicitly setting the requirement in the prompt: 
     - Always incomplete: 
             V1Switch(
                 MyParser(),
