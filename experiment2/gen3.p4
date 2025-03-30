@@ -27,6 +27,10 @@ struct headers {
     ipv4_t ipv4;
 }
 
+struct metadata {
+    // Define your metadata fields here
+}
+
 parser MyParser(packet_in packet, out headers hdr) {
     state start {
         packet.extract(hdr.ethernet);
@@ -43,11 +47,12 @@ parser MyParser(packet_in packet, out headers hdr) {
 
 control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
     Register<bit<32>>(1) ipv4_packet_count;
-
     action count_ipv4_packets() {
-        ipv4_packet_count.write(0, ipv4_packet_count.read(0) + 1);
+        bit<32> count;
+        ipv4_packet_count.read(count, 0);
+        count = count + 1;
+        ipv4_packet_count.write(0, count);
     }
-
     table count_ipv4_table {
         key = {
             hdr.ipv4.version: exact;
@@ -57,19 +62,17 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
         }
         default_action = count_ipv4_packets();
     }
-
     apply {
-        if (hdr.ipv4.isValid()) {
-            count_ipv4_table.apply();
-        }
+        count_ipv4_table.apply();
     }
 }
 
 control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
-    apply { }
+    apply {
+    }
 }
 
-control MyDeparser(packet_out packet, inout headers hdr) {
+control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
@@ -80,4 +83,5 @@ V1Switch(
     MyParser(),
     MyIngress(),
     MyEgress(),
-    MyDeparser()) main;
+    MyDeparser()
+) main;

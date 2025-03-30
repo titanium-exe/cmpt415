@@ -22,12 +22,15 @@ header ipv4_t {
     bit<32> dstAddr;
 }
 
-struct headers {
+struct Headers {
     ethernet_t ethernet;
     ipv4_t ipv4;
 }
 
-parser MyParser(packet_in packet, out headers hdr) {
+struct Meta {
+}
+
+parser MyParser(packet_in packet, out Headers hdr, inout Meta meta, inout standard_metadata_t standard_metadata) {
     state start {
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
@@ -35,41 +38,42 @@ parser MyParser(packet_in packet, out headers hdr) {
             default: accept;
         }
     }
+
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
         transition accept;
     }
 }
 
-control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
-    Register<bit<32>>(1) ipv4_packet_count;
+control MyIngress(inout Headers hdr, inout Meta meta, inout standard_metadata_t standard_metadata) {
+    Register<bit<32>>(1) packet_count;
 
-    action count_ipv4_packets() {
-        ipv4_packet_count.write(0, ipv4_packet_count.read(0) + 1);
+    action count_packets() {
+        packet_count.write(0, packet_count.read(0) + 1);
     }
 
-    table count_ipv4_table {
+    table count_ipv4_packets {
         key = {
             hdr.ipv4.version: exact;
         }
         actions = {
-            count_ipv4_packets;
+            count_packets;
         }
-        default_action = count_ipv4_packets();
+        default_action = count_packets();
     }
 
     apply {
         if (hdr.ipv4.isValid()) {
-            count_ipv4_table.apply();
+            count_ipv4_packets.apply();
         }
     }
 }
 
-control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+control MyEgress(inout Headers hdr, inout Meta meta, inout standard_metadata_t standard_metadata) {
     apply { }
 }
 
-control MyDeparser(packet_out packet, inout headers hdr) {
+control MyDeparser(packet_out packet, in Headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
@@ -80,4 +84,5 @@ V1Switch(
     MyParser(),
     MyIngress(),
     MyEgress(),
-    MyDeparser()) main;
+    MyDeparser()
+) main;
