@@ -1,0 +1,11 @@
+/usr/local/share/p4c/p4include/v1model.p4(760): [--Werror=type-error] error: 'package V1Switch'
+package V1Switch<H, M>(Parser<H, M> p,
+        ^^^^^^^^
+  ---- Actual error:
+  /usr/local/share/p4c/p4include/v1model.p4(765): dep: No argument supplied for parameter
+                         Deparser<H> dep
+                                     ^^^
+  ---- Originating from:
+  gen2.p4(45): Constructor invocation '<Method call>' does not match declaration 'V1Switch'
+  ) main;
+    ^^^^
