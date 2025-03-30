@@ -13,10 +13,13 @@ MODEL = "gpt-4"
 P4_FILE = "generated.p4"
 OUTPUT_FILE = "build_output.txt"
 DB_FILE = "p4_logs.db"
-ITERATIONS = 15
+ITERATIONS = 5
 
 def setup_database():
     """Initialize SQLite database to store compilation results."""
+    if os.path.exists(DB_FILE):
+        os.remove(DB_FILE)
+        print("old data removed\n")
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS p4_logs (
@@ -60,10 +63,16 @@ def generate_detailed_prompt(high_level_prompt):
         print(f"Your prompt: '{high_level_prompt}' is too high-level. Please provide more specifics.")
         more_details = input("Please provide additional details: ")
         detailed_prompt = (
-            f"{high_level_prompt}. {more_details}. Generate valid P4_16 code that compiles successfully using p4c-bm2-ss. "
-            "The code should target a simple switch architecture (e.g., v1model) and include basic packet parsing, "
-            "match-action tables, and egress processing. Ensure the code is complete with necessary headers, parsers, "
-            "and control blocks."
+            f"{high_level_prompt}. {more_details}. "
+            "You are an expert in P4_16 programming targeting the BMv2 v1model architecture. "
+            "Generate complete, valid P4_16 code that compiles with `p4c-bm2-ss`. "
+            "Use the `v1model.p4` architecture and include:\n"
+            "- All required headers (Ethernet, IPv4, TCP)\n"
+            "- `struct headers` and `struct metadata`\n"
+            "- Full parser, ingress, egress, deparser, VerifyChecksum, and ComputeChecksum blocks\n"
+            "- Final `V1Switch(...) main;` instantiation must include **all 6 components**:\n\n"
+            "`V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), ComputeChecksum(), MyDeparser()) main;`\n\n"
+            "Do not use #includes. Do not skip the checksum stages."
         )
 
     print(f"\nDetailed prompt generated: {detailed_prompt}")
