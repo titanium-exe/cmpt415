@@ -1,0 +1,241 @@
+================================================================================
+First Entry (Log ID: 1)
+Iteration: 1
+Timestamp: 2025-04-04T21:23:33.522078
+Success: No
+
+--- User Prompt ---
+You are writing P4_16 code for the BMv2 `v1model` architecture. Your code must compile using `p4c-bm2-ss`. Include:
+- Definitions for standard headers like `ethernet_t` and `ipv4_t`.
+- A `headers` struct, and an empty `metadata` struct.
+- Parser (`MyParser`) that extracts headers.
+- Ingress control logic in `MyIngress` (apply match-action).
+- Use `standard_metadata.egress_spec = 0` to drop packets.
+- Emit headers in `MyDeparser`.
+- Use built-in checksum blocks (`VerifyChecksum`, `ComputeChecksum`) or leave empty.
+- Final block must be: `V1Switch(...) main;` using all 6 components.
+
+Now, implement the following user intent:
+Forward packets to port 2 if destination IP is 192.168.1.100.
+
+--- Generated P4 Code ---
+#include <core.p4>
+#include <v1model.p4>
+
+#define IP_ADDR 0xc0a80164 // 192.168.1.100
+#define DEST_PORT 2
+
+header ethernet_t {
+    bit<48> dstAddr;
+    bit<48> srcAddr;
+    bit<16> etherType;
+}
+
+header ipv4_t {
+    bit<4> version;
+    bit<4> ihl;
+    bit<8> diffserv;
+    bit<16> totalLen;
+    bit<16> identification;
+    bit<3> flags;
+    bit<13> fragOffset;
+    bit<8> ttl;
+    bit<8> protocol;
+    bit<16> hdrChecksum;
+    bit<32> srcAddr;
+    bit<32> dstAddr;
+}
+
+struct headers {
+    ethernet_t ethernet;
+    ipv4_t ipv4;
+}
+
+struct metadata {
+}
+
+parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    state start {
+        packet.extract(hdr.ethernet);
+        transition parse_ipv4;
+    }
+    state parse_ipv4 {
+        packet.extract(hdr.ipv4);
+        transition accept;
+    }
+}
+
+control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
+    apply {}
+}
+
+control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    action drop() {
+        standard_metadata.egress_spec = 0;
+    }
+    action forward() {
+        standard_metadata.egress_spec = DEST_PORT;
+    }
+    table forward_table {
+        key = {
+            hdr.ipv4.dstAddr : exact;
+        }
+        actions = {
+            forward;
+            drop;
+        }
+        default_action = drop();
+        entries = {
+            IP_ADDR : forward();
+        }
+    }
+    apply {
+        forward_table.apply();
+    }
+}
+
+control MyComputeChecksum(inout headers hdr, inout metadata meta) {
+    apply {}
+}
+
+control MyDeparser(packet_out packet, in headers hdr) {
+    apply {
+        packet.emit(hdr.ethernet);
+        packet.emit(hdr.ipv4);
+    }
+}
+
+V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyComputeChecksum(), MyDeparser()) main;
+
+--- Compiler Output ---
+/usr/local/share/p4c/p4include/v1model.p4(760): [--Werror=type-error] error: 'package V1Switch'
+package V1Switch<H, M>(Parser<H, M> p,
+        ^^^^^^^^
+  ---- Actual error:
+  /usr/local/share/p4c/p4include/v1model.p4(765): dep: No argument supplied for parameter
+                         Deparser<H> dep
+                                     ^^^
+  ---- Originating from:
+  gen1.p4(87): Constructor invocation '<Method call>' does not match declaration 'V1Switch'
+  V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyComputeChecksum(), MyDeparser()) main;
+                                                                                           ^^^^
+
+================================================================================
+
+================================================================================
+Last Entry (Log ID: 2)
+Iteration: 1
+Timestamp: 2025-04-04T21:23:52.631347
+Success: Yes
+
+--- User Prompt ---
+You are writing P4_16 code for the BMv2 `v1model` architecture. Your code must compile using `p4c-bm2-ss`. Include:
+- Definitions for standard headers like `ethernet_t` and `ipv4_t`.
+- A `headers` struct, and an empty `metadata` struct.
+- Parser (`MyParser`) that extracts headers.
+- Ingress control logic in `MyIngress` (apply match-action).
+- Use `standard_metadata.egress_spec = 0` to drop packets.
+- Emit headers in `MyDeparser`.
+- Use built-in checksum blocks (`VerifyChecksum`, `ComputeChecksum`) or leave empty.
+- Final block must be: `V1Switch(...) main;` using all 6 components.
+
+Now, implement the following user intent:
+Forward packets to port 2 if destination IP is 192.168.1.100.
+
+--- Generated P4 Code ---
+#include <core.p4>
+#include <v1model.p4>
+
+#define IP_ADDR 0xc0a80164 // 192.168.1.100
+#define DEST_PORT 2
+
+header ethernet_t {
+    bit<48> dstAddr;
+    bit<48> srcAddr;
+    bit<16> etherType;
+}
+
+header ipv4_t {
+    bit<4> version;
+    bit<4> ihl;
+    bit<8> diffserv;
+    bit<16> totalLen;
+    bit<16> identification;
+    bit<3> flags;
+    bit<13> fragOffset;
+    bit<8> ttl;
+    bit<8> protocol;
+    bit<16> hdrChecksum;
+    bit<32> srcAddr;
+    bit<32> dstAddr;
+}
+
+struct headers {
+    ethernet_t ethernet;
+    ipv4_t ipv4;
+}
+
+struct metadata {
+}
+
+parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    state start {
+        packet.extract(hdr.ethernet);
+        transition parse_ipv4;
+    }
+    state parse_ipv4 {
+        packet.extract(hdr.ipv4);
+        transition accept;
+    }
+}
+
+control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
+    apply {}
+}
+
+control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    action drop() {
+        standard_metadata.egress_spec = 0;
+    }
+    action forward() {
+        standard_metadata.egress_spec = DEST_PORT;
+    }
+    table forward_table {
+        key = {
+            hdr.ipv4.dstAddr : exact;
+        }
+        actions = {
+            forward;
+            drop;
+        }
+        default_action = drop();
+        entries = {
+            IP_ADDR : forward();
+        }
+    }
+    apply {
+        forward_table.apply();
+    }
+}
+
+control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    apply {}
+}
+
+control MyComputeChecksum(inout headers hdr, inout metadata meta) {
+    apply {}
+}
+
+control MyDeparser(packet_out packet, in headers hdr) {
+    apply {
+        packet.emit(hdr.ethernet);
+        packet.emit(hdr.ipv4);
+    }
+}
+
+V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;
+
+--- Compiler Output ---
+
+================================================================================
+

@@ -1,0 +1,4 @@
+gen10.p4(48):syntax error, unexpected IDENTIFIER, expecting ACTION or CONST or TABLE
+    Register
+    ^^^^^^^^
+[--Werror=overlimit] error: 1 errors encountered, aborting compilation
