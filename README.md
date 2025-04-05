@@ -114,7 +114,7 @@
 
 ---
 
-## Experiment 5 [**Success**]
+## Experiment 5 Tailored prompt for moderately hard intent [**Success**]
 
 - **Iteration No**: 3 (with compiler warning)
 - **User Intent**: Count the number of IPv4 packets received on each ingress port and maintain separate counters per port using registers
@@ -175,3 +175,32 @@ def generate_nat_prompt(high_level_intent):
   - [Comparison of 1st and 2nd Outputs](header_modification_NAT/experiment1-success/1_2_output.txt)  
 
 --- 
+
+
+## Experiment 7: General Prompt Generator, but moderately hard intent [**Failed**]
+
+- **Total Interations**: 10 
+
+- **User Intent**: Count the number of IPv4 packets received on each ingress port and maintain separate counters per port using registers
+
+- **Prompt Generator**:
+```python 
+    def  generate_detailed_prompt(user_intent):
+        return (
+            f"You are writing P4_16 code for the BMv2 `v1model` architecture. "
+            "Your code must compile using `p4c-bm2-ss`. Include:\n"
+            "- Definitions for standard headers like `ethernet_t` and `ipv4_t`.\n"
+            "- A `headers` struct, and an empty `metadata` struct.\n"
+            "- Parser (`MyParser`) that extracts headers.\n"
+            "- Ingress control logic in `MyIngress` (apply match-action).\n"
+            "- Use `standard_metadata.egress_spec = 0` to drop packets.\n"
+            "- Emit headers in `MyDeparser`.\n"
+            "- Use built-in checksum blocks (`VerifyChecksum`, `ComputeChecksum`) or leave empty.\n"
+            "- Final block must be: `V1Switch(...) main;` using all 6 components.\n"
+            "\nNow, implement the following user intent:\n"
+            f"{user_intent.strip()}"
+        )
+```
+- **Output Comparisons**:
+ - [Comparison of 1st and 10th failed Outputs](experiment7-failed/output_2.txt)  
+
