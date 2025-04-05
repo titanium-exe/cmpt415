@@ -35,7 +35,8 @@
     ```
 
 - **Comparison of 1st and 5th Outputs**:  
-  Refer to `experiment1/1-and-5-summary.txt`.
+ [Comparison of 1st and 5th Outputs](experiment1-failed/1-and-5-summary.txt)
+
 
 ---
 
@@ -55,6 +56,7 @@
 - **Common Errors**:
 
 - **Comparison of 1st and 5th Outputs**:  
+ [Comparison of 1st and 5th Outputs](experiment2-success/1_5_Output.txt)
 
 
 ---
@@ -83,6 +85,7 @@
 - **Common Errors**:
 
 - **Comparison of 1st and 3rd Outputs**:  
+ [Comparison of 1st and 3rd Outputs](experiment3-success/1_3_output.txt)
 
 ---
 
@@ -110,6 +113,7 @@
 - **Improvements**:
 
 - **Comparison of 1st and 5th Outputs**:  
+[Comparison of 1st and 5th Outputs](experiment4-failed/1_5_output.txt)
 
 ---
 
@@ -140,3 +144,4 @@
 
 
 - **Comparison of 1st and 3rd Outputs**:  
+ [Comparison of 1st and 3rd Outputs](experiment5-success/1_3_output.txt)
