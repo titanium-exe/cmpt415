@@ -1,0 +1,3 @@
+gen3.p4(37): [--Wwarn=unsupported] warning: Explicit transition to reject not supported on this target
+            default: reject;
+                     ^^^^^^

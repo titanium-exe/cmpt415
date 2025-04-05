@@ -46,16 +46,26 @@ def log_to_database(iteration, prompt, code, compiler_output, success):
     conn.close()
 
 def generate_detailed_prompt(high_level_prompt):
-    """Enhance a high-level user input into a detailed, compiler-targeted P4_16 prompt."""
     detailed_prompt = (
-        f"{high_level_prompt}. Generate valid P4_16 code that compiles successfully using p4c-bm2-ss. "
-        "The code should target a simple switch architecture (e.g., v1model) and include basic packet parsing, "
-        "match-action tables, and egress processing. Ensure the code is complete with necessary headers, parsers, "
-        "and control blocks."
+        f"{high_level_prompt}. "
+        "Generate valid, complete P4_16 code that compiles with `p4c-bm2-ss` for the BMv2 `v1model` architecture. "
+        "Use the following definitions:\n"
+        "- Define `ethernet_t` and `ipv4_t` headers, and combine them in `struct headers`.\n"
+        "- Define an empty `struct metadata {}`.\n"
+        "- Define a parser named `MyParser` that extracts Ethernet and IPv4 headers using `etherType`.\n"
+        "- Use control blocks named exactly: `MyVerifyChecksum`, `MyIngress`, `MyEgress`, `MyComputeChecksum`, `MyDeparser`.\n"
+        "- Declare registers *outside* control blocks using `register<bit<32>>(256)` syntax.\n"
+        "- Use register `read()` and `write()` correctly with `out` variable and matching index types (e.g., cast `ingress_port` to `bit<32>`).\n"
+        "- Do **not** use `update_checksum()`. Leave `MyComputeChecksum` empty or correctly define `UpdateChecksum<>()` if needed.\n"
+        "- Do **not** call `VerifyChecksum<>()` as a function — define `MyVerifyChecksum` control block instead.\n"
+        "- Use `standard_metadata.egress_spec = 0;` for dropping packets.\n"
+        "End exactly with:\n"
+        "`V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
     )
 
-    print(f"\nDetailed prompt generated: {detailed_prompt}")
+    print(f"\nDetailed prompt generated:\n{detailed_prompt}")
     return detailed_prompt
+
 
 def get_user_prompt():
     """Prompt the user for the high-level intent and generate a detailed version."""
@@ -200,10 +210,10 @@ def write_code_to_file(code, filename):
 
 def main():
     """Main driver loop for iterative code generation and compilation."""
-    os.makedirs("build", exist_ok=True)  # Ensure output directory exists
+    os.makedirs("build", exist_ok=True) 
     setup_database()
 
-    user_prompt = get_user_prompt()  # Collect detailed user prompt once
+    user_prompt = get_user_prompt()  
 
     for iteration in range(1, ITERATIONS + 1):
         print(f"\n=== Iteration {iteration}/{ITERATIONS} ===")
@@ -217,23 +227,28 @@ def main():
         write_code_to_file(code, iteration_filename)
         compiler_output, success = compile_p4_code(iteration_filename)
 
-        # Log original result
+      
         log_to_database(iteration, user_prompt, code, compiler_output, success)
 
-        # Retry once if compilation fails
-        if not success:
-            choice = input("Send compiler errors to ChatGPT for improvement? (y/n): ").lower()
-            if choice == "y":
-                fixed_code = fix_p4_code(code, compiler_output)
-                if fixed_code:
-                    write_code_to_file(fixed_code, iteration_filename)
-                    new_output, new_success = compile_p4_code(iteration_filename)
-                    log_to_database(iteration, user_prompt, fixed_code, new_output, new_success)
-                else:
-                    print("No improved code returned.")
+        if success:
+            print("Code compiled successfully. Stopping early.")
+            break 
 
+        choice = input("Send compiler errors to ChatGPT for improvement? (y/n): ").lower()
+        if choice == "y":
+            fixed_code = fix_p4_code(code, compiler_output)
+            if fixed_code:
+                write_code_to_file(fixed_code, iteration_filename)
+                new_output, new_success = compile_p4_code(iteration_filename)
+                log_to_database(iteration, user_prompt, fixed_code, new_output, new_success)
+                if new_success:
+                    print("Fixed code compiled successfully. Stopping early.")
+                    break
+            else:
+                print("No improved code returned.")
 
-    summarize_results()  # Print final statistics
+    summarize_results() 
+
 
 if __name__ == "__main__":
     main()
