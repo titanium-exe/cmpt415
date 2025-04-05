@@ -37,3 +37,17 @@
     ```
 
 - **Comparison of 1st and 5th Outputs**: Refer to `experiment1/1-and-5-summary.txt`.  
+
+## Experiment 2 
+
+
+
+## Experiment 3 
+
+
+
+## Experiment 4 
+
+
+
+## Experiment 5 
