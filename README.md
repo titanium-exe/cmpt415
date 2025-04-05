@@ -9,14 +9,13 @@
 - **User Intent**: Parse Ethernet and IPv4 headers and forward packets unchanged
 - **Prompt Generator**:  
     ```python
-    detailed_prompt = (
-        f"{high_level_prompt}. "
-        "Write valid, complete P4_16 code for the BMv2 `v1model` architecture that compiles with `p4c-bm2-ss`. "
-        "Include all required blocks: headers, metadata, parser, ingress, egress, deparser, VerifyChecksum, ComputeChecksum. "
-        "Define an empty `struct metadata {}`. "
-        "End with `V1Switch(...) main;` using all six components exactly:\n"
-        "`V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
+      detailed_prompt = (
+        f"{high_level_prompt}. Generate valid P4_16 code that compiles successfully using p4c-bm2-ss. "
+        "The code should target a simple switch architecture (e.g., v1model) and include basic packet parsing, "
+        "match-action tables, and egress processing. Ensure the code is complete with necessary headers, parsers, "
+        "and control blocks."
     )
+
     ```
 
 - **Observation**:  

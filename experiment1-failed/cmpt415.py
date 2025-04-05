@@ -46,30 +46,12 @@ def log_to_database(iteration, prompt, code, compiler_output, success):
     conn.close()
 
 def generate_detailed_prompt(high_level_prompt):
-    """Enhance a high-level user input into a detailed, compiler-targeted P4_16 prompt."""
     detailed_prompt = (
         f"{high_level_prompt}. Generate valid P4_16 code that compiles successfully using p4c-bm2-ss. "
         "The code should target a simple switch architecture (e.g., v1model) and include basic packet parsing, "
         "match-action tables, and egress processing. Ensure the code is complete with necessary headers, parsers, "
         "and control blocks."
     )
-
-    # Check for vague prompts
-    vague_keywords = ["simple", "basic", "something", "anything"]
-    is_vague = any(keyword in high_level_prompt.lower() for keyword in vague_keywords) or len(high_level_prompt.split()) < 5
-
-    if is_vague:
-        print("\n=== Simulated ChatGPT Response ===")
-        print(f"Your prompt: '{high_level_prompt}' is too high-level. Please provide more specifics.")
-        more_details = input("Please provide additional details: ")
-        detailed_prompt = (
-            f"{high_level_prompt}. {more_details}. "
-            "Write valid, complete P4_16 code for the BMv2 `v1model` architecture that compiles with `p4c-bm2-ss`. "
-            "Include all required blocks: headers, metadata, parser, ingress, egress, deparser, VerifyChecksum, ComputeChecksum. "
-            "Define an empty `struct metadata {}`. "
-            "End with `V1Switch(...) main;` using all six components exactly:\n"
-            "`V1Switch(MyParser(), VerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
-        )
 
     print(f"\nDetailed prompt generated: {detailed_prompt}")
     return detailed_prompt
