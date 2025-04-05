@@ -32,19 +32,15 @@ This project investigates using GPT-4 to generate P4\_16 code from natural langu
 \maketitle
 % \textbf{Start} by writing a few lines describing some background information
 % \cite{ConfPaperName, ConfPaperName}, and how your work relates to the domain.  
-
 \section{Literature Review}
 
-Intent-Based Networking (IBN) has gained attention for its potential to abstract complex network configurations through high-level goals \cite{jain_ibn}. Several studies have explored how to formalize intents and map them to low-level control plane or data plane logic \cite{levin_ibn_survey}. However, bridging the gap between intent and programmable data planes, such as P4, remains a relatively unexplored area.
+The use of large language models (LLMs) in networking tasks such as configuration synthesis, intent translation, and code analysis has been the focus of several recent studies.
 
-Large Language Models (LLMs) like GPT-3 and GPT-4 have recently shown promise in generating source code from natural language across multiple domains \cite{chen_codex}. These models can understand instructions and produce compilable code snippets, but their reliability varies based on prompt design and code domain complexity.
+Wang et al.\ introduce \textit{NetConfEval}~\cite{wang2023netconfeval}, a benchmark framework for assessing the ability of LLMs to translate natural language-based network configuration tasks into device-level commands. Their study reveals that while LLMs show considerable potential in understanding high-level intents, they often suffer from syntactic inaccuracies and limited semantic grounding. Our work builds on these findings by introducing a closed-loop system that uses compiler feedback to iteratively refine LLM-generated P4\_16 code, improving syntactic correctness over multiple iterations.
 
-The P4 language enables fine-grained control over packet processing in the data plane \cite{bosshart_p4}, but writing correct and compilable P4 programs is non-trivial, especially for newcomers. As such, automating P4 code synthesis has practical relevance for making data plane programming more accessible.
+Fang et al.~\cite{fang2024codeanalysis} conduct an empirical evaluation of LLMs on both normal and obfuscated code analysis tasks. Their results indicate that while GPT-4 can understand and explain source code with high accuracy, it struggles with de-obfuscation and consistently producing compilable outputs. Our work aligns with these findings and extends them by evaluating how compiler feedback can improve the syntactic validity of LLM-generated code in a domain-specific language (DSL), namely P4\_16.
 
-Our work draws inspiration from the NADA project \cite{nada}, which proposed a scoped, context-specific prompt generation strategy in the domain of reinforcement learning for adaptive bitrate (ABR) video streaming. We extend this idea to programmable networks, using scoped prompts to guide GPT-4 more effectively in generating valid P4\_16 code.
-
-This project builds on these prior insights by combining scoped prompting, compiler feedback, and closed-loop refinement into a novel application of LLMs for intent-to-P4 code synthesis.
-
+Finally, He et al.\ introduce the \textit{NADA} framework~\cite{he2024nada}, which demonstrates that LLMs can be guided to design high-performing network algorithms through component-level prompting and iterative evaluation. Rather than attempting end-to-end code generation, NADA decomposes algorithm design into modular tasks—such as state definition and neural network architecture—which are each handled with dedicated prompts. Inspired by this strategy, our system adopts a scope-based prompting approach to isolate intents by functionality (e.g., parsing, forwarding, header modification). This modular structure improves both the reliability and convergence of GPT-4-generated P4\_16 code, particularly for moderately complex network intents.
 
 \section{Introduction}
 In traditional network configuration, operators must write and maintain low level rules and code to control packet behavior, making it error prone and inflexible. Intent Based Networking (IBN) proposes a paradigm shift: users define high level intents such as "block all HTTP traffic" or "forward packets from host A to port X" and the system handles the translation into low level configuration. This approach can reduce complexity, improve reliability, and enable more agile network management.
@@ -65,7 +61,7 @@ Figure~\ref{fig:system-design}  illustrates the architecture of the closed-loop 
 
 The process begins with a user-provided intent in natural language. This intent is first processed by a prompt generator, which formats the input into a detailed instruction suitable for GPT-4. The language model then generates a candidate P4\_16 program based on the prompt.
 
-The generated code is compiled using the \texttt{p4c-bm2-ss} compiler. If the code compiles successfully, it becomes a deployable P4 program. If compilation fails, the system captures the compiler errors and feeds them—along with the original prompt—back into GPT-4 to regenerate a corrected version of the program.
+The generated code is compiled using the \texttt{p4c-bm2-ss} compiler. If the code compiles successfully, it can be used as a working P4 program. If it fails to compile, the system collects the compiler error messages and sends them together with the code back to GPT-4. GPT-4 then tries to fix the errors and generate a corrected version of the code.
 
 
 \begin{figure}[t]
@@ -116,7 +112,7 @@ This section presents the outcomes of seven experiments designed to assess the c
 \end{itemize}
 
 \subsection*{Quantitative Analysis}
-The system achieved a success rate of 57.1\% (4 out of 7 experiments succeeded). For successful cases:
+The system achieved a success rate of 57.1\% (4 out of 7 experiments succeeded). \\ For successful cases:
 \begin{itemize}
     \item Average iterations to success: 4.25 (Experiment 2: 5, Experiment 3: 3, Experiment 5: 3, Experiment 6: 4.67 average across three intents).
     \item Minimum iterations: 2 (Experiment 6, Intent: Set source MAC to a fixed value and drop the packet if the destination IP is 8.8.8.8).
@@ -136,7 +132,10 @@ Notably, iteration counts did not always align with perceived intent complexity.
     \item \textbf{Task Complexity Impacts Feasibility}: Simple stateless tasks like header parsing (Experiment 2) and TCP filtering (Experiment 3) succeeded with fewer iterations, whereas stateful operations like register counting (Experiments 4, 7) failed without precise instructions.
     \item \textbf{Compiler Feedback Has Limits}: The feedback loop corrected syntactic issues (e.g., one error in Experiment 1 after five iterations), but could not overcome semantic gaps in general prompts, as seen in the persistent failures of Experiments 4 and 7.
     \item \textbf{Advanced Features Need Explicit Guidance}: Register-based logic succeeded only with detailed syntax and scoping (Experiment 5), unlike header parsing or forwarding, which worked with minimal prompts (Experiments 2, 3).
-    \item \textbf{Scope-Based Prompting Enhances Reliability}: Inspired by the NADA project’s context-driven design separation, structuring prompts by functionality (e.g., parsing, modification) improved outcomes across diverse intents, as evidenced by Experiment 6’s success with an average of 4.67 iterations.
+    \item \textbf{Scope-Based Prompting Enhances Reliability}:
+    Inspired by the context-driven design separation proposed in the NADA framework~\cite{he2024nada}, we structured prompts around specific functionalities (e.g., parsing, modification). This led to improved outcomes across intents within the same domain—as demonstrated by the success of Experiment~6, which converged in an average of 4.67 iterations.
+    
+
 \end{itemize}
 
 These findings validate the hypothesis that effective prompt engineering in intent-based networking hinges on aligning prompts with the functional scope of the intent. General prompts suffice for basic tasks, but moderately complex intents demand tailored, domain-specific instructions. Future enhancements could leverage intent classifiers or scope mappers to automate prompt selection, streamlining the translation process.
@@ -145,12 +144,15 @@ These findings validate the hypothesis that effective prompt engineering in inte
 
 This project explored how Large Language Models, specifically GPT-4, can be used to generate P4\_16 code from high-level natural language intents. We implemented a closed-loop system that iteratively refines the code based on compiler feedback until a valid program is produced. Through a series of experiments, we found that while general prompts work for simple parsing and forwarding tasks, scope-specific prompt templates significantly improve success rates for moderately complex intents such as header modification or register usage.
 
-Inspired by the NADA project, we adopted a scope-based approach to prompt generation and demonstrated its effectiveness across a variety of networking use cases. Our findings suggest that LLMs have the potential to assist in intent-to-configuration translation, but reliability depends heavily on how well the prompt aligns with the underlying intent.
+Inspired by the NADA framework~\cite{he2024nada}, we adopted a scope-based approach to prompt generation and demonstrated its effectiveness across a variety of networking use cases. Our findings suggest that LLMs have the potential to assist in intent-to-configuration translation, but reliability depends heavily on how well the prompt aligns with the underlying intent.
 
 While the findings are promising, they are based on a limited set of nine experiments and should be interpreted as exploratory rather than conclusive. Further large-scale testing is required to strengthen the statistical validity of the results.
 
-Future work could focus on several directions. One possibility is to develop a classifier that automatically identifies the intent scope and selects the appropriate prompt template. Another is to fine-tune LLMs on a corpus of syntactically valid P4\_16 code to improve reliability. Additionally, integrating formal verification or behavioral testing into the feedback loop may allow not just syntactic correctness, but also semantic validation. 
+Future work could focus on several directions. One possibility is to develop a classifier that automatically identifies the intent scope and selects the appropriate prompt template, streamlining the translation process. Another direction involves conducting additional experiments to analyze GPT-4’s behavior in generating P4\_16 code, identifying patterns in its successes and failures (e.g., error types, iteration counts); these patterns could be used to train a machine learning model to optimize prompt generation, improving the system’s efficiency and success rate. Additionally, fine-tuning LLMs on a corpus of syntactically valid P4\_16 code could enhance reliability, particularly for complex intents like stateful operations. Finally, integrating formal verification or behavioral testing into the feedback loop may enable not just syntactic correctness, but also semantic validation, ensuring the generated code accurately implements the intended behavior.
 
+\section{Github Code}
+Source Code:
+\url{https://github.com/titanium-exe/cmpt415/tree/main}
 
 
 \bibliographystyle{ACM-Reference-Format}
