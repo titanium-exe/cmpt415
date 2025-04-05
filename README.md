@@ -33,8 +33,8 @@
     ) main;
     ```
 
-
- [Comparison of 1st and 5th Outputs](experiment1-failed/1-and-5-summary.txt)
+- **Output Comparisons**:
+ - [Comparison of 1st and 5th Outputs](experiment1-failed/1-and-5-summary.txt)
 
 
 ---
@@ -52,9 +52,9 @@
         "and control blocks."
     )
     ```
-- **Common Errors**:
 
- [Comparison of 1st and 5th Outputs](experiment2-success/1_5_Output.txt)
+- **Output Comparisons**:
+ - [Comparison of 1st and 5th Outputs](experiment2-success/1_5_Output.txt)
 
 
 ---
@@ -80,9 +80,8 @@
         "`V1Switch(MyParser(), VerifyChecksum<headers, metadata>(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
     )
     ```
-- **Common Errors**:
-
- [Comparison of 1st and 3rd Outputs](experiment3-success/1_3_output.txt)
+- **Output Comparisons**:
+  - [Comparison of 1st and 3rd Outputs](experiment3-success/1_3_output.txt)
 
 ---
 
@@ -105,11 +104,8 @@
         "`V1Switch(MyParser(), VerifyChecksum<headers, metadata>(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
     )
   ```
-  
-- **Common Errors**:  
-- **Improvements**:
-
-[Comparison of 1st and 5th Outputs](experiment4-failed/1_5_output.txt)
+- **Output Comparisons**:
+  - [Comparison of 1st and 5th Outputs](experiment4-failed/1_5_output.txt)
 
 ---
 
@@ -136,10 +132,9 @@
         "`V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
     )
   ```
-- **Common Errors**:
 
- 
- [Comparison of 1st and 3rd Outputs](experiment5-success/1_3_output.txt)
+ - **Output Comparisons**:
+  - [Comparison of 1st and 3rd Outputs](experiment5-success/1_3_output.txt)
 
 
 ---
@@ -171,7 +166,7 @@ def generate_nat_prompt(high_level_intent):
 - **Output Comparisons**:
   - [Comparison of 1st and 9th Outputs](header_modification_NAT/experiment1-success/1_9_Output.txt)  
   - [Comparison of 1st and 3rd Outputs](header_modification_NAT/experiment2-success/1_3_output.txt)  
-  - [Comparison of 1st and 2nd Outputs](header_modification_NAT/experiment1-success/1_2_output.txt)  
+  - [Comparison of 1st and 2nd Outputs](header_modification_NAT/experiment3-success/1_2_output.txt)  
 
 --- 
 
