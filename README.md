@@ -34,7 +34,7 @@
     ) main;
     ```
 
-- **Comparison of 1st and 5th Outputs**:  
+
  [Comparison of 1st and 5th Outputs](experiment1-failed/1-and-5-summary.txt)
 
 
@@ -55,7 +55,6 @@
     ```
 - **Common Errors**:
 
-- **Comparison of 1st and 5th Outputs**:  
  [Comparison of 1st and 5th Outputs](experiment2-success/1_5_Output.txt)
 
 
@@ -84,7 +83,6 @@
     ```
 - **Common Errors**:
 
-- **Comparison of 1st and 3rd Outputs**:  
  [Comparison of 1st and 3rd Outputs](experiment3-success/1_3_output.txt)
 
 ---
@@ -112,7 +110,6 @@
 - **Common Errors**:  
 - **Improvements**:
 
-- **Comparison of 1st and 5th Outputs**:  
 [Comparison of 1st and 5th Outputs](experiment4-failed/1_5_output.txt)
 
 ---
@@ -142,6 +139,39 @@
   ```
 - **Common Errors**:
 
-
-- **Comparison of 1st and 3rd Outputs**:  
+ 
  [Comparison of 1st and 3rd Outputs](experiment5-success/1_3_output.txt)
+
+
+---
+
+## Experiment 6: Scope (Header Modification) Specific Prompt and Intents [**Success**]
+
+- **Iteration No**: max: 9, min: 2  
+- **User Intent**:  
+  1) Rewrite destination IP to 10.0.0.2 if it is 10.0.0.1  
+  2) Translate destination IP from 192.168.0.100 to 172.16.0.100 for NAT  
+  3) Set source MAC to a fixed value and drop the packet if the destination IP is 8.8.8.8  
+
+- **Prompt Generator**:
+```python
+def generate_nat_prompt(high_level_intent):
+    prompt = (
+        f"{high_level_intent.strip()}. "
+        "Generate valid, complete P4_16 code targeting the BMv2 `v1model` architecture that compiles with `p4c-bm2-ss`. "
+        "Include definitions for `ethernet_t` and `ipv4_t` headers and use a `headers` struct to hold them. "
+        "Implement a parser named `MyParser` that extracts Ethernet and IPv4 headers. "
+        "In the `MyIngress` block, modify headers based on match-action logic. "
+        "Emit modified headers in the `MyDeparser`. "
+        "Define an empty `metadata` struct. "
+        "Use `V1Switch(...) main;` to wire together: `MyParser`, `MyVerifyChecksum`, `MyIngress`, `MyEgress`, `MyComputeChecksum`, `MyDeparser`."
+    )
+    return prompt
+```
+
+- **Output Comparisons**:
+  - [Comparison of 1st and 9th Outputs](header_modification_NAT/experiment1-success/1_9_Output.txt)  
+  - [Comparison of 1st and 3rd Outputs](header_modification_NAT/experiment2-success/1_3_output.txt)  
+  - [Comparison of 1st and 2nd Outputs](header_modification_NAT/experiment1-success/1_2_output.txt)  
+
+--- 
