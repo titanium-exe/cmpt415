@@ -22,25 +22,13 @@ header ipv4_t {
     bit<32> dstAddr;
 }
 
-header tcp_t {
-    bit<16> srcPort;
-    bit<16> dstPort;
-    bit<32> seqNo;
-    bit<32> ackNo;
-    bit<4> dataOffset;
-    bit<12> resv;
-    bit<16> window;
-    bit<16> checksum;
-    bit<16> urgentPtr;
-}
-
 struct headers {
     ethernet_t ethernet;
     ipv4_t ipv4;
-    tcp_t tcp;
 }
 
-struct metadata {}
+struct metadata {
+}
 
 parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
     state start {
@@ -49,44 +37,36 @@ parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout st
     }
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        transition parse_tcp;
-    }
-    state parse_tcp {
-        packet.extract(hdr.tcp);
         transition accept;
     }
 }
 
-Register<bit<32>>(32) packetCount;
-
 control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
-    action countPackets() {
-        bit<32> count = packetCount.read(standard_metadata.ingress_port);
-        count = count + 1;
-        packetCount.write(standard_metadata.ingress_port, count);
-    }
+    Register<bit<32>>(256) port_counter;
+
     apply {
-        if (hdr.ipv4.isValid()) {
-            countPackets();
-        } else {
-            standard_metadata.egress_spec = 0;
+        if(hdr.ipv4.isValid()) {
+            bit<32> ingress_port = standard_metadata.ingress_port;
+            port_counter.write(ingress_port, port_counter.read(ingress_port) + 1);
         }
     }
 }
 
 control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
-    apply {}
+    apply {
+    }
 }
 
 control MyComputeChecksum(inout headers hdr, inout metadata meta) {
-    apply {}
+    apply {
+        update_checksum(hdr.ipv4.isValid(), { hdr.ipv4.version, hdr.ipv4.ihl, hdr.ipv4.diffserv, hdr.ipv4.totalLen, hdr.ipv4.identification, hdr.ipv4.flags, hdr.ipv4.fragOffset, hdr.ipv4.ttl, hdr.ipv4.protocol, hdr.ipv4.srcAddr, hdr.ipv4.dstAddr }, hdr.ipv4.hdrChecksum);
+    }
 }
 
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
-        packet.emit(hdr.tcp);
     }
 }
 

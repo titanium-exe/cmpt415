@@ -48,20 +48,20 @@ def log_to_database(iteration, prompt, code, compiler_output, success):
 def generate_detailed_prompt(high_level_prompt):
     detailed_prompt = (
         f"{high_level_prompt}. "
-        "Generate valid, complete P4_16 code that compiles with `p4c-bm2-ss` for the BMv2 `v1model` architecture. "
-        "The code must define:\n"
-        "- Ethernet, IPv4, and TCP headers (`ethernet_t`, `ipv4_t`, `tcp_t`).\n"
-        "- A `headers` struct with exactly: `ethernet_t ethernet; ipv4_t ipv4; tcp_t tcp;`\n"
-        "- An empty `struct metadata {}`.\n"
-        "- A parser named `MyParser` with correct signature and transitions for Ethernet → IPv4 → TCP.\n"
-        "- Control blocks named: `MyIngress`, `MyEgress`, `MyComputeChecksum`, `MyDeparser` (can be empty).\n"
-        "- Do **not** redefine `VerifyChecksum`; instead, use BMv2's built-in: `VerifyChecksum<headers, metadata>()`.\n"
-        "- To drop packets, set `standard_metadata.egress_spec = 0;`. Do **not** use `drop()` unless defined.\n"
-        "End the program with exactly:\n"
+        "Generate complete, valid P4_16 code for BMv2 using the `v1model` architecture that compiles with `p4c-bm2-ss`. "
+        "Define headers: `ethernet_t`, `ipv4_t`, and optionally `tcp_t` if needed. "
+        "Use a `headers` struct to hold extracted headers and define an empty `metadata` struct. "
+        "Use the built-in `VerifyChecksum<headers, metadata>()` — do not redefine it. "
+        "If using registers, declare them globally (outside any control blocks) and access them using correct `bit<32>` indices. "
+        "Cast `standard_metadata.ingress_port` to `bit<32>` if used as register index. "
+        "To drop packets, use `standard_metadata.egress_spec = 0;`. "
+        "Do not use `drop()` unless explicitly defined. "
+        "End the program with:\n"
         "`V1Switch(MyParser(), VerifyChecksum<headers, metadata>(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;`"
     )
     print(f"\nDetailed prompt generated: {detailed_prompt}")
     return detailed_prompt
+
 
 
 def get_user_prompt():

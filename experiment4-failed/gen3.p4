@@ -22,23 +22,9 @@ header ipv4_t {
     bit<32> dstAddr;
 }
 
-header tcp_t {
-    bit<16> srcPort;
-    bit<16> dstPort;
-    bit<32> seqNo;
-    bit<32> ackNo;
-    bit<4> dataOffset;
-    bit<4> reserved;
-    bit<8> flags;
-    bit<16> window;
-    bit<16> checksum;
-    bit<16> urgentPtr;
-}
-
 struct headers {
     ethernet_t ethernet;
     ipv4_t ipv4;
-    tcp_t tcp;
 }
 
 struct metadata {
@@ -46,40 +32,27 @@ struct metadata {
 
 parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
     state start {
-        transition parse_ethernet;
-    }
-    state parse_ethernet {
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
-            0x0800: parse_ipv4;
+            16w0x0800: parse_ipv4;
             default: accept;
         }
     }
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        transition select(hdr.ipv4.protocol) {
-            6: parse_tcp;
-            default: accept;
-        }
-    }
-    state parse_tcp {
-        packet.extract(hdr.tcp);
         transition accept;
     }
 }
 
 control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
-    Counter(32) port_counters;
-    action count_packets() {
-        bit<32> port = standard_metadata.ingress_port;
-        bit<32> counter_value = port_counters.read(port);
-        port_counters.write(port, counter_value + 1);
-    }
+    Register<bit<32>>(32w0) ipv4_packet_counter;
+
     apply {
         if (hdr.ipv4.isValid()) {
-            count_packets();
-        } else {
-            standard_metadata.egress_spec = 0;
+            bit<32> ingress_port = (bit<32>) standard_metadata.ingress_port;
+            bit<32> counter_value = ipv4_packet_counter.read(ingress_port);
+            counter_value = counter_value + 1;
+            ipv4_packet_counter.write(ingress_port, counter_value);
         }
     }
 }
@@ -91,6 +64,7 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
 
 control MyComputeChecksum(inout headers hdr, inout metadata meta) {
     apply {
+        update_checksum(hdr.ipv4.isValid(), { hdr.ipv4.version, hdr.ipv4.ihl, hdr.ipv4.diffserv, hdr.ipv4.totalLen, hdr.ipv4.identification, hdr.ipv4.flags, hdr.ipv4.fragOffset, hdr.ipv4.ttl, hdr.ipv4.protocol, hdr.ipv4.srcAddr, hdr.ipv4.dstAddr }, hdr.ipv4.hdrChecksum, HashAlgorithm.csum16);
     }
 }
 
@@ -98,7 +72,6 @@ control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
-        packet.emit(hdr.tcp);
     }
 }
 

@@ -1,4 +1,4 @@
-gen5.p4(71):syntax error, unexpected IDENTIFIER, expecting ACTION or CONST or TABLE
+gen5.p4(45):syntax error, unexpected IDENTIFIER, expecting ACTION or CONST or TABLE
     Register
     ^^^^^^^^
 [--Werror=overlimit] error: 1 errors encountered, aborting compilation
